@@ -8,10 +8,4 @@
 
 产物在 `~/Applications/声栖 构建产物/0.8.0/声栖.app`。构建脚本会 ad-hoc 签名，但不含 Apple Developer ID 签名或公证；首次打开时可能需要在 Finder 中右键并选择“打开”。提交给用户前需在目标 Mac 上检查可启动、加载 small 模型、转写和音频导出，并另行完成应用包的第三方依赖许可核对。
 
-## GitHub 自动构建
-
-公开仓库提供 `Build macOS Apple Silicon app` 工作流，运行在 GitHub 标准 `macos-14` Apple Silicon runner 上。它会下载固定 revision 的 small 模型、构建 `.app`，检查应用包签名结构与 arm64 主程序，并上传保留 1 天的候选 ZIP。可在仓库 Actions 页面手动运行，也会在相关源码更新时运行。公开仓库的标准 runner 免费；该工作流不会创建 Release，也不会把候选冒充成正式发布版。
-
-工作流只能验证 runner 上构建、签名和架构检查；没有替代用户 Mac 的实际启动、转写及音频导出验收。应用未做 Developer ID 签名和公证。当前 FFmpeg/PyAV 二进制再分发审查仍未完成，所以工作流产物标记为候选；完成许可核验前不要作为正式公开发行版。
-
 本构建目录不会声称在 Windows 上完成 Mac 验证，也不会把源码、虚拟环境或构建日志放进 `.app` 交付压缩包。
