@@ -1,0 +1,9 @@
+# Versions validated by the local Windows build; Python 3.12.
+faster-whisper==1.2.1
+ctranslate2==4.8.1
+av==18.0.0
+tokenizers==0.23.1
+onnxruntime==1.28.0
+huggingface-hub==1.24.0
+opencc==1.4.1
+PyInstaller==6.22.2

@@ -1,0 +1,17 @@
+本工具使用的主要开源组件：
+
+- faster-whisper（MIT License）
+  https://github.com/SYSTRAN/faster-whisper
+- Systran/faster-whisper-small 转换模型（上游模型卡标注 MIT；由 OpenAI Whisper small 转换）
+  https://huggingface.co/Systran/faster-whisper-small
+- CTranslate2（MIT License）
+  https://github.com/OpenNMT/CTranslate2
+- PyAV 源码（BSD-3-Clause License；注意这不等于其二进制 wheel 及所捆绑 FFmpeg 的完整许可）
+  https://github.com/PyAV-Org/PyAV
+  注意：本机 PyAV 18.1.0 Windows wheel 还捆绑 FFmpeg 8.1.2、x264、x265 等 DLL。上游维护者说明测试构建的 GPL 开关不代表发布 wheel 的构建，并称二进制存在“LGPL＋商业例外”或“GPL”许可路线；但当前分发审查尚未取得并匹配该 wheel 所需的完整例外条款、所有二进制对应源代码及通知材料。FFmpeg 官方也要求按具体构建核验 GPL 组件和依赖。故当前包未获公开分发许可审查通过，不能只按 PyAV 源码仓库的 BSD 许可证判断。
+
+源码本身许可证须由项目所有者明确选择；它不会自动改变任何第三方组件的许可证。
+
+本机 Windows 候选复用旧分享包中的 small 模型，旧包未记录模型的精确上游 revision。当前核对的模型卡标注 MIT，但公开发布前应锁定具体 revision 并再次保存当时的许可证及模型来源元数据。当前 PyAV wheel 的许可路线与 FFmpeg/x264/x265 对应源代码、例外条款尚待核清；应用自身目前使用 PyAV 解码输入媒体并导出 MP3/M4A/WAV/FLAC，x264/x265 视频编码器不是该工作流所需，可评估采用不含 GPL 编解码器的构建，但需要实测兼容性并锁定对应源码与配置。此外，NVIDIA/CUDA 相关可再分发文件、PyInstaller 运行时和完整传递依赖也未逐项完成二进制级许可审计，因此不得据此宣称整个应用包已完成开放发布审查。
+
+正式分发前应保留应用包 `_internal` 目录中随组件附带的许可证／元数据，并保留本说明。不得把开源软件包装成自行训练的模型或声称识别结果绝对准确。

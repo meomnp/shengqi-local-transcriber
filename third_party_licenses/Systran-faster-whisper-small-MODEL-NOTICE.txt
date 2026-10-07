@@ -1,0 +1,10 @@
+Model asset: Systran/faster-whisper-small
+Upstream: https://huggingface.co/Systran/faster-whisper-small
+License metadata shown by the upstream model repository: MIT.
+The repository describes this model as a CTranslate2 conversion of openai/whisper-small.
+This local distribution copy was taken from the previously shared Windows package; its
+exact upstream revision is not recorded in that package. The upstream model card and
+license metadata were checked on 2026-10-06.
+
+The MIT license text for the converted model is included as Systran-faster-whisper-small-MODEL-MIT.txt.
+The upstream model card is the source of truth for updates and attribution.

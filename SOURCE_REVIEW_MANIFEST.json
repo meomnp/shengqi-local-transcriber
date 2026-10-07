@@ -1,0 +1,176 @@
+{
+  "status": "source_release_candidate",
+  "application_license": "MIT",
+  "files": [
+    {
+      "path": "local_transcriber.py",
+      "bytes": 112342,
+      "sha256": "95d8ab50093efa60b9b2f7cdccc587cf540c1f8f65de15646915ac280b3c2f46"
+    },
+    {
+      "path": "distribution.spec",
+      "bytes": 2645,
+      "sha256": "a76fcaef77f3f2e5908fc9aaf7f83c67d9a51f74d047a2f6d86a394f52245831"
+    },
+    {
+      "path": "requirements-desktop.txt",
+      "bytes": 211,
+      "sha256": "5e0b8d89bd7d0a548636f63671fd9ee33d2d8927ed123b3a7d4d1f03529eb6fe"
+    },
+    {
+      "path": ".gitignore",
+      "bytes": 391,
+      "sha256": "6d51da3be79835b3f71ea7b44318b655f2567e88f003d51386d4a6df915a05ce"
+    },
+    {
+      "path": "prepare_logo_assets.py",
+      "bytes": 2960,
+      "sha256": "7898bbed303b5ff8ed88451fc89e7ea00dd3e9646403a10602c2e058e7e20ca3"
+    },
+    {
+      "path": "test_logo_assets.py",
+      "bytes": 2413,
+      "sha256": "8c987b8d6d1507a57b1818635caea261ff7625c36ca96ffc9c1736daca6f22e6"
+    },
+    {
+      "path": "test_output_rules.py",
+      "bytes": 15610,
+      "sha256": "b004ac9b471e1bcc096ca3829bdd1c7656f66f197670ab51aca514db586e7f87"
+    },
+    {
+      "path": "test_distribution_paths.py",
+      "bytes": 2992,
+      "sha256": "fb178a19a386a36fa1d29637e90d518765f85fa7de72cde7d1732766e60eb9ca"
+    },
+    {
+      "path": "test_gui_layout.py",
+      "bytes": 4844,
+      "sha256": "a392b074719ff238c83f90eb8ef1b902967f0dc1ae62b7bcf965f892de2d65cb"
+    },
+    {
+      "path": "test_packaged_audio.py",
+      "bytes": 2875,
+      "sha256": "084a027469dbdd09dead0c1f7b77d7f3c5e4f5371fe0ebe7af1e52468ba7c54c"
+    },
+    {
+      "path": "export_source.py",
+      "bytes": 2843,
+      "sha256": "cb48dec23fce6a193442b6f250812c8067f5dc43666e495a651f9e66765c249b"
+    },
+    {
+      "path": "test_source_export.py",
+      "bytes": 2020,
+      "sha256": "26e5909d77201565807dceb6a87ac5d4e7d756f5f8d41757606f46a79fa70c69"
+    },
+    {
+      "path": "assets/app.ico",
+      "bytes": 39294,
+      "sha256": "e4476a54e861421f13e81632ec4125b827c1370b761f31ffeaaabfd6d12dcb62"
+    },
+    {
+      "path": "assets/shengqi-logo.png",
+      "bytes": 323384,
+      "sha256": "60159c8723751fcfb28df38c935680cfc167778a642468c5734b60ffa9179453"
+    },
+    {
+      "path": "assets/shengqi-logo-64.png",
+      "bytes": 3022,
+      "sha256": "1600ba18b94a002826aa0c55040c07bafe5b07371e1ec0efa5a0fb12a4a1a487"
+    },
+    {
+      "path": "package_integrity.py",
+      "bytes": 1470,
+      "sha256": "3a7e5690500bde42cfe330763556c73a53bb6a5eeef00ce5137a5b4e09ebee45"
+    },
+    {
+      "path": "校验程序完整性.ps1",
+      "bytes": 1517,
+      "sha256": "9ecf9bc202e42abc7753862a7e0cfad98942d70b9b4b5a93cdcb52ad6257a411"
+    },
+    {
+      "path": "README.md",
+      "bytes": 4232,
+      "sha256": "a8ef978cd4e6866aca40b7b224b30c1bf5ecad664b48db523cd6513cc26c6562"
+    },
+    {
+      "path": "LICENSE",
+      "bytes": 1076,
+      "sha256": "913c416e61601e22aee354f88bfb4bc3a6d2ed853b2505232d0e38b465be7a9c"
+    },
+    {
+      "path": "开源组件与许可.txt",
+      "bytes": 2166,
+      "sha256": "ea7f2700c74a732d566a9288e489fe3236bd104caaca653e4d3e8277a1a6c3f3"
+    },
+    {
+      "path": "创建桌面快捷方式.ps1",
+      "bytes": 1219,
+      "sha256": "cb2021142a79713842707870b5ffd4569cd6eb6adaf0a52358f9cdc9ad07307d"
+    },
+    {
+      "path": "finish_windows_package.ps1",
+      "bytes": 1707,
+      "sha256": "3adeccf0921587b8fad79e6e5d8558128c4722b4039c75c2f44212c674448dc0"
+    },
+    {
+      "path": "声栖_新包使用说明.md",
+      "bytes": 3491,
+      "sha256": "96231ce3fbd1d26334c2828c94b2e43c1a6894660ada58960eab2517c25cdeab"
+    },
+    {
+      "path": "third_party_licenses/CTranslate2-4.8.1-LICENSE.txt",
+      "bytes": 1115,
+      "sha256": "54aa79d9fe3c09e67a16dcd95b9e88676405a6ec174efda31036983cf7672ecb"
+    },
+    {
+      "path": "third_party_licenses/tokenizers-0.23.1-LICENSE.txt",
+      "bytes": 11357,
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+    },
+    {
+      "path": "third_party_licenses/SOURCES.md",
+      "bytes": 11242,
+      "sha256": "db5a46fc0c1a49146d2098e53ac69ecb346f2f824e5d1e922d7f4baabaf57db1"
+    },
+    {
+      "path": "third_party_licenses/Systran-faster-whisper-small-MODEL-NOTICE.txt",
+      "bytes": 653,
+      "sha256": "acf58d2dd3403293f2b0f87d380ee85583fe94cf0ffb2d1473fc6461a5fa9fa8"
+    },
+    {
+      "path": "third_party_licenses/Systran-faster-whisper-small-MODEL-MIT.txt",
+      "bytes": 1064,
+      "sha256": "af6798135e729f8aa6c853936d037dfdea449734d26b8ea6a89805fca758c0d5"
+    },
+    {
+      "path": "third_party_licenses/PyAV-BSD-3-Clause-LICENSE.txt",
+      "bytes": 1505,
+      "sha256": "76af0461ffb92e19f1c14449e95557d83a2dfaa1baf202d49e5f1d8746c0da19"
+    },
+    {
+      "path": "macOS/README.md",
+      "bytes": 1235,
+      "sha256": "fd46da3b9819c285d5505708c385198b17370e68ba95dd6f0e654a9978ba6cf8"
+    },
+    {
+      "path": "macOS/requirements-macos.txt",
+      "bytes": 78,
+      "sha256": "9af077fd8513301ddcef5902cc691938854c00103fe35328c4318fbee7f6e4da"
+    },
+    {
+      "path": "macOS/local_transcriber_macos.spec",
+      "bytes": 1994,
+      "sha256": "0754574905317f7d08aa2f2b2864e8c226d0c703ea1b38aa5e0d88278065cd99"
+    },
+    {
+      "path": "macOS/build.command",
+      "bytes": 2311,
+      "sha256": "8d96418146123c544feb80bee33784056bfece41ba89c0a9a946427d355463e7"
+    },
+    {
+      "path": "macOS/launch.command",
+      "bytes": 232,
+      "sha256": "5c1ea8a7cc260ffc5ea7df3667c94525d05ba4632d36121c98ec5d9f2f353d16"
+    }
+  ]
+}
