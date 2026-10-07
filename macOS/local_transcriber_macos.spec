@@ -72,7 +72,7 @@ app = BUNDLE(
     coll,
     name="声栖.app",
     bundle_identifier="com.shengqi.transcriber",
-    version="0.8.0",
+    version="0.8.2",
     info_plist={
         "CFBundleDisplayName": "声栖｜本地音视频转文字",
         "LSMinimumSystemVersion": "13.0",

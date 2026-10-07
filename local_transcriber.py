@@ -26,7 +26,7 @@ for _stream in (sys.stdout, sys.stderr):
 
 
 APP_NAME = "声栖｜本地音视频转文字"
-APP_VERSION = "0.8.0"
+APP_VERSION = "0.8.2"
 IS_FROZEN = bool(getattr(sys, "frozen", False))
 APP_ROOT = Path(sys.executable).resolve().parent if IS_FROZEN else Path(__file__).resolve().parent
 BUILD_RUNTIME = Path(
@@ -101,7 +101,8 @@ class Options:
     output_scope: str = ""
 
 
-EXPORT_FORMATS = {"srt", "txt_plain", "txt_timed", "md", "json"}
+EXPORT_FORMATS = {"srt", "txt_plain", "txt_timed", "md", "json", "all"}
+ALL_EXPORT_FORMATS = ("md", "txt_timed", "txt_plain", "srt", "json")
 EXPORT_SCOPES = {"per_episode", "combined", "both"}
 
 
@@ -116,6 +117,7 @@ def resolve_export_plan(options: Options) -> dict:
         return {
             "modern": True,
             "format": options.output_format,
+            "formats": ALL_EXPORT_FORMATS if options.output_format == "all" else (options.output_format,),
             "scope": scope,
             "per_episode": scope in {"per_episode", "both"},
             "combined": scope in {"combined", "both"},
@@ -123,6 +125,7 @@ def resolve_export_plan(options: Options) -> dict:
     return {
         "modern": False,
         "format": "",
+        "formats": (),
         "scope": "legacy",
         "per_episode": options.write_srt or options.write_txt,
         "combined": options.write_combined or options.write_timed or options.write_md or options.write_json,
@@ -511,6 +514,72 @@ def load_internal_json(path: Path) -> dict | None:
         return None
 
 
+def recent_tasks_path() -> Path:
+    """Return the per-user local index location; never place history in the app bundle."""
+    if sys.platform == "darwin":
+        base = Path.home() / "Library" / "Application Support" / "声栖"
+    elif os.name == "nt":
+        base = Path(os.environ.get("LOCALAPPDATA", str(Path.home() / "AppData" / "Local"))) / "声栖"
+    else:
+        base = Path(os.environ.get("XDG_DATA_HOME", str(Path.home() / ".local" / "share"))) / "shengqi"
+    return base / "recent_tasks.json"
+
+
+def load_recent_tasks(path: Path | None = None, limit: int = 100) -> list[dict]:
+    """Load a small local task index. Invalid or old records are ignored safely."""
+    history_path = path or recent_tasks_path()
+    try:
+        with history_path.open("r", encoding="utf-8") as file:
+            payload = json.load(file)
+    except (OSError, ValueError):
+        return []
+    records = payload.get("tasks", []) if isinstance(payload, dict) else payload
+    if not isinstance(records, list):
+        return []
+    valid = [
+        record for record in records
+        if isinstance(record, dict)
+        and isinstance(record.get("created_at"), str)
+        and isinstance(record.get("output_path"), str)
+    ]
+    return valid[:max(0, limit)]
+
+
+def record_recent_task(record: dict, path: Path | None = None, limit: int = 100) -> list[dict]:
+    """Atomically prepend one metadata-only record and retain at most 100 entries."""
+    history_path = path or recent_tasks_path()
+    fields = (
+        "created_at", "task", "source_name", "source_path", "output_path",
+        "primary_result", "status", "completed", "total", "failed", "elapsed",
+    )
+    clean = {key: record.get(key, "") for key in fields}
+    clean["completed"] = max(0, int(clean.get("completed") or 0))
+    clean["total"] = max(0, int(clean.get("total") or 0))
+    clean["failed"] = max(0, int(clean.get("failed") or 0))
+    records = [clean, *load_recent_tasks(history_path, limit=max(limit, 1))][:max(0, limit)]
+    history_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path = history_path.with_name(history_path.name + ".tmp")
+    try:
+        with temporary_path.open("w", encoding="utf-8", newline="\n") as file:
+            json.dump({"schema_version": 1, "tasks": records}, file, ensure_ascii=False, indent=2)
+        os.replace(temporary_path, history_path)
+    finally:
+        try:
+            temporary_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+    return records
+
+
+def clear_recent_tasks(path: Path | None = None) -> None:
+    """Remove only the local history index; exported media and transcripts are untouched."""
+    history_path = path or recent_tasks_path()
+    try:
+        history_path.unlink()
+    except FileNotFoundError:
+        pass
+
+
 def convert_chinese_script(segments: list[dict], target: str) -> list[dict]:
     if target == "preserve":
         return [dict(segment) for segment in segments]
@@ -667,6 +736,14 @@ def write_transcript_json(
 
 def export_extension(output_format: str) -> str:
     return {"srt": ".srt", "txt_plain": ".txt", "txt_timed": ".txt", "md": ".md", "json": ".json"}[output_format]
+
+
+def build_episode_export_path(output_base: Path, output_format: str, all_formats: bool = False) -> Path:
+    """Choose distinct per-file names when exporting several text formats together."""
+    if all_formats and output_format in {"txt_plain", "txt_timed"}:
+        suffix = "纯文字" if output_format == "txt_plain" else "带时间码"
+        return output_base.with_name(f"{output_base.name}_{suffix}.txt")
+    return output_base.with_suffix(export_extension(output_format))
 
 
 def write_episode_export(
@@ -1005,17 +1082,26 @@ def transcribe_folder(
         episodes.append(episode)
 
         episode_export_path: Path | None = None
+        episode_export_paths: list[str] = []
         if export_plan["modern"] and export_plan["per_episode"]:
-            episode_export_path = output_base.with_suffix(export_extension(export_plan["format"]))
             series_title = Path(options.input_file).stem if options.input_file else input_folder.name
-            write_episode_export(
-                export_plan["format"],
-                episode_export_path,
-                input_folder,
-                episode,
-                series_title,
-                options.task == "translate",
-            )
+            for selected_format in export_plan["formats"]:
+                current_path = build_episode_export_path(
+                    output_base,
+                    selected_format,
+                    all_formats=options.output_format == "all",
+                )
+                write_episode_export(
+                    selected_format,
+                    current_path,
+                    input_folder,
+                    episode,
+                    series_title,
+                    options.task == "translate",
+                )
+                episode_export_paths.append(str(current_path))
+            preferred = next((Path(p) for p in episode_export_paths if p.endswith(".md")), None)
+            episode_export_path = preferred or (Path(episode_export_paths[0]) if episode_export_paths else None)
         elif not export_plan["modern"]:
             if options.write_srt:
                 write_srt(srt_path, output_segments)
@@ -1031,6 +1117,7 @@ def transcribe_folder(
                 "srt": str(srt_path) if not export_plan["modern"] and options.write_srt else None,
                 "txt": str(txt_path) if not export_plan["modern"] and options.write_txt else None,
                 "export": str(episode_export_path) if episode_export_path else None,
+                "exports": episode_export_paths,
                 "record": str(data_path),
                 "reused": cache_valid and not options.overwrite,
             }
@@ -1045,17 +1132,22 @@ def transcribe_folder(
         suffix = '合并英文译稿' if options.task == 'translate' else '合并文字稿'
     combined_path = output_folder / f"{title}_{suffix}.txt"
     full_export_path: Path | None = None
+    full_export_paths: list[str] = []
     if export_plan["modern"] and export_plan["combined"] and episodes:
-        full_export_path = combined_export_path(output_folder, title, suffix, export_plan["format"])
-        write_full_export(
-            export_plan["format"],
-            full_export_path,
-            input_folder,
-            episodes,
-            title,
-            bool(options.input_file),
-            options.task == "translate",
-        )
+        for selected_format in export_plan["formats"]:
+            current_path = combined_export_path(output_folder, title, suffix, selected_format)
+            write_full_export(
+                selected_format,
+                current_path,
+                input_folder,
+                episodes,
+                title,
+                bool(options.input_file),
+                options.task == "translate",
+            )
+            full_export_paths.append(str(current_path))
+        preferred = next((Path(p) for p in full_export_paths if p.endswith(".md")), None)
+        full_export_path = preferred or (Path(full_export_paths[0]) if full_export_paths else None)
     if not export_plan["modern"] and options.write_combined and episodes:
         write_combined(combined_path, input_folder, episodes, title, bool(options.input_file), options.task == 'translate', timed=False)
     timed_path = output_folder / f'{title}_{suffix}_带时间码.txt'
@@ -1086,6 +1178,7 @@ def transcribe_folder(
         "cancelled": bool(cancel_event and cancel_event.is_set()),
         "combined_txt": str(combined_path) if not export_plan["modern"] and options.write_combined and episodes else None,
         "full_export": str(full_export_path) if full_export_path else None,
+        "full_exports": full_export_paths,
         "results": results,
         "timed_txt": str(timed_path) if not export_plan["modern"] and options.write_timed and episodes else None,
         "markdown": str(markdown_path) if not export_plan["modern"] and options.write_md and episodes else None,
@@ -1283,6 +1376,7 @@ def launch_gui() -> None:
                 "TXT 纯文字（方便阅读）": "txt_plain",
                 "SRT 字幕（原视频时间码）": "srt",
                 "JSON 结构化数据": "json",
+                "常用格式全套（MD＋TXT＋SRT＋JSON）": "all",
             }
             self.output_scopes = {
                 "每个文件单独导出": "per_episode",
@@ -1313,6 +1407,7 @@ def launch_gui() -> None:
             self.progress_done = 0.0
             self.progress_total = 0
             self.last_result: str | None = None
+            self.active_task: dict | None = None
             self.source_help_var = tk.StringVar()
             self.model_help_var = tk.StringVar()
             self.preview_var = tk.StringVar()
@@ -1519,6 +1614,7 @@ def launch_gui() -> None:
             self.audio_button = self.start_button
             self.stop_button = ttk_module.Button(buttons, text='停止', command=self.stop, state='disabled')
             self.stop_button.pack(side='left', padx=6)
+            ttk_module.Button(buttons, text='最近任务', command=self.show_recent_tasks).pack(side='left', padx=(0, 6))
             ttk_module.Button(buttons, text='打开输出目录', command=self.open_output).pack(side='right')
             self.result_button = ttk_module.Button(buttons, text='打开主要结果', command=self.open_primary_result, state='disabled')
             self.result_button.pack(side='right', padx=(0, 8))
@@ -1698,6 +1794,7 @@ def launch_gui() -> None:
                 'txt_plain': '纯文字 TXT：最简洁，适合通读和复制，不包含定位时间。',
                 'srt': 'SRT：标准字幕文件，可导入常见剪辑软件；时间码对应各自原视频。',
                 'json': 'JSON：供其他应用或自动化读取，不建议作为人工阅读稿。',
+                'all': '一次同时生成 Markdown、带时间码 TXT、纯文字 TXT、SRT 和 JSON；文件较多、占用空间较大。',
             }
             selected_format = self.output_formats[self.output_format_var.get()]
             self.format_help_var.set(format_descriptions[selected_format])
@@ -1711,13 +1808,16 @@ def launch_gui() -> None:
             translated = self.task_var.get() == '翻译成英文'
             suffix = ('合并英文译稿' if translated else '合并文字稿') if series else ('英文译稿' if translated else '文字稿')
             output_format = self.output_formats[self.output_format_var.get()]
+            selected_formats = ALL_EXPORT_FORMATS if output_format == 'all' else (output_format,)
             output_scope = self.output_scopes[self.output_scope_var.get()]
-            extension = export_extension(output_format)
             names: list[str] = []
-            if series and output_scope in {'per_episode', 'both'}:
-                names.append(f'逐个文件\\每个源文件名{extension}')
-            if output_scope in {'combined', 'both'}:
-                names.append(combined_export_path(Path('.'), title, suffix, output_format).name)
+            for current_format in selected_formats:
+                extension = export_extension(current_format)
+                if series and output_scope in {'per_episode', 'both'}:
+                    per_file_suffix = '_纯文字' if output_format == 'all' and current_format == 'txt_plain' else '_带时间码' if output_format == 'all' and current_format == 'txt_timed' else ''
+                    names.append(f'逐个文件\\每个源文件名{per_file_suffix}{extension}')
+                if output_scope in {'combined', 'both'}:
+                    names.append(combined_export_path(Path('.'), title, suffix, current_format).name)
             self.preview_var.set('将生成：' + '；'.join(names))
 
         def choose_input(self) -> None:
@@ -1794,6 +1894,13 @@ def launch_gui() -> None:
                 input_folder = str(Path(input_file).resolve().parent)
             output_folder = self.output_var.get().strip() or str(Path(input_folder))
             self.output_var.set(output_folder)
+            self.active_task = {
+                'task': '转成文字',
+                'source_path': str(Path(input_file or input_folder).resolve()),
+                'source_name': Path(input_file or input_folder).name,
+                'output_path': str(Path(output_folder).resolve()),
+                'created_at': datetime.now().astimezone().isoformat(timespec='seconds'),
+            }
             options = Options(
                 input_folder=input_folder,
                 output_folder=output_folder,
@@ -1860,6 +1967,13 @@ def launch_gui() -> None:
             input_folder = str(Path(selected).resolve().parent) if input_file else selected
             output_folder = self.output_var.get().strip() or input_folder
             self.output_var.set(output_folder)
+            self.active_task = {
+                'task': '提取音频',
+                'source_path': str(Path(input_file or input_folder).resolve()),
+                'source_name': Path(input_file or input_folder).name,
+                'output_path': str(Path(output_folder).resolve()),
+                'created_at': datetime.now().astimezone().isoformat(timespec='seconds'),
+            }
             recursive = self.recursive_var.get()
             audio_format = self.audio_formats[self.audio_format_var.get()]
             overwrite = self.overwrite_var.get()
@@ -2035,6 +2149,14 @@ def launch_gui() -> None:
                             manifest['options']['output_folder'],
                         )
                         self.result_button.configure(state='normal')
+                        self._record_recent_task(
+                            '已停止' if manifest['cancelled'] else ('部分失败' if manifest.get('failed', 0) else '完成'),
+                            completed=manifest.get('completed', 0),
+                            total=manifest.get('total_discovered', 0),
+                            failed=manifest.get('failed', 0),
+                            primary_result=self.last_result,
+                            elapsed=elapsed,
+                        )
                         if self.close_after_task_if_requested():
                             return
                         messagebox.showinfo(
@@ -2062,6 +2184,14 @@ def launch_gui() -> None:
                         self.status_var.set(
                             f"结果已保存到：{manifest['output_folder']}"
                         )
+                        self._record_recent_task(
+                            '已停止' if manifest['cancelled'] else ('部分失败' if manifest.get('failed', 0) else '完成'),
+                            completed=manifest.get('available', 0),
+                            total=manifest.get('total_discovered', 0),
+                            failed=manifest.get('failed', 0),
+                            primary_result=self.last_result,
+                            elapsed=elapsed,
+                        )
                         if self.close_after_task_if_requested():
                             return
                         messagebox.showinfo(
@@ -2085,6 +2215,7 @@ def launch_gui() -> None:
                         self.last_result = None
                         self.result_button.configure(state='disabled')
                         self.status_var.set("运行失败，请查看日志。")
+                        self._record_recent_task('失败', elapsed=elapsed)
                         if self.close_after_task_if_requested():
                             return
                         messagebox.showerror(APP_NAME, event[1].split("\n", 1)[0])
@@ -2103,6 +2234,129 @@ def launch_gui() -> None:
                 os.startfile(path)
             else:
                 subprocess.run(["xdg-open", str(path)], check=False)
+
+        def _record_recent_task(
+            self,
+            status: str,
+            *,
+            completed: int = 0,
+            total: int = 0,
+            failed: int = 0,
+            primary_result: str = "",
+            elapsed: str = "",
+        ) -> None:
+            if not self.active_task:
+                return
+            record = {
+                **self.active_task,
+                'primary_result': primary_result,
+                'status': status,
+                'completed': completed,
+                'total': total,
+                'failed': failed,
+                'elapsed': elapsed,
+            }
+            try:
+                record_recent_task(record)
+            except (OSError, TypeError, ValueError) as error:
+                self.append_log(f'最近任务记录未能保存：{error}')
+            finally:
+                self.active_task = None
+
+        def show_recent_tasks(self) -> None:
+            records = load_recent_tasks()
+            dialog = tk.Toplevel(self.root)
+            dialog.title('最近任务（本机记录）')
+            dialog.transient(self.root)
+            dialog.geometry('900x430')
+            dialog.minsize(650, 320)
+            panel = ttk.Frame(dialog, padding=12)
+            panel.pack(fill='both', expand=True)
+            ttk.Label(
+                panel,
+                text='保留最近 100 条任务，仅记录路径、状态和数量；清空记录不会删除导出文件。',
+                wraplength=850,
+            ).pack(anchor='w', pady=(0, 8))
+            columns = ('time', 'task', 'status', 'source', 'count', 'output')
+            table = ttk.Treeview(panel, columns=columns, show='headings', selectmode='browse')
+            headings = {
+                'time': ('时间', 145), 'task': ('任务', 85), 'status': ('状态', 85),
+                'source': ('素材', 150), 'count': ('完成/总数', 85), 'output': ('结果目录', 280),
+            }
+            for column, (label, width) in headings.items():
+                table.heading(column, text=label)
+                table.column(column, width=width, minwidth=60, stretch=column in {'source', 'output'})
+            scrollbar = ttk.Scrollbar(panel, orient='vertical', command=table.yview)
+            table.configure(yscrollcommand=scrollbar.set)
+            table.pack(side='left', fill='both', expand=True)
+            scrollbar.pack(side='right', fill='y')
+            for index, record in enumerate(records):
+                table.insert('', 'end', iid=str(index), values=(
+                    str(record.get('created_at', '')).replace('T', ' ')[:19],
+                    record.get('task', ''), record.get('status', ''),
+                    record.get('source_name', ''),
+                    f"{record.get('completed', 0)}/{record.get('total', 0)}",
+                    record.get('output_path', ''),
+                ))
+            if records:
+                table.selection_set('0')
+            else:
+                ttk.Label(panel, text='还没有任务记录。', foreground='#6D655D').pack(anchor='center', pady=18)
+
+            actions = ttk.Frame(dialog, padding=(12, 0, 12, 12))
+            actions.pack(fill='x')
+
+            def selected_record() -> dict | None:
+                selection = table.selection()
+                if not selection:
+                    return None
+                try:
+                    return records[int(selection[0])]
+                except (ValueError, IndexError):
+                    return None
+
+            def open_selected() -> None:
+                record = selected_record()
+                target = Path(record.get('output_path', '')) if record else None
+                if not target or not target.exists():
+                    messagebox.showwarning(APP_NAME, '所选结果目录当前不存在。', parent=dialog)
+                    return
+                if sys.platform == 'darwin':
+                    subprocess.run(['open', str(target)], check=False)
+                elif os.name == 'nt':
+                    os.startfile(target)
+                else:
+                    subprocess.run(['xdg-open', str(target)], check=False)
+
+            def copy_selected() -> None:
+                record = selected_record()
+                if not record:
+                    messagebox.showwarning(APP_NAME, '请先选择一条任务。', parent=dialog)
+                    return
+                dialog.clipboard_clear()
+                dialog.clipboard_append(str(record.get('output_path', '')))
+                messagebox.showinfo(APP_NAME, '结果目录路径已复制。', parent=dialog)
+
+            def clear_selected_history() -> None:
+                if not messagebox.askyesno(
+                    APP_NAME,
+                    '只清空本机最近任务记录，不会删除任何转写结果或音频文件。继续吗？',
+                    parent=dialog,
+                ):
+                    return
+                try:
+                    clear_recent_tasks()
+                except OSError as error:
+                    messagebox.showerror(APP_NAME, f'清空记录失败：{error}', parent=dialog)
+                    return
+                for row in table.get_children():
+                    table.delete(row)
+                records.clear()
+
+            ttk.Button(actions, text='打开选中目录', command=open_selected).pack(side='left')
+            ttk.Button(actions, text='复制结果路径', command=copy_selected).pack(side='left', padx=6)
+            ttk.Button(actions, text='清空历史', command=clear_selected_history).pack(side='left')
+            ttk.Button(actions, text='关闭', command=dialog.destroy).pack(side='right')
 
         def open_primary_result(self) -> None:
             if not self.last_result:

@@ -1,3 +1,4 @@
 faster-whisper==1.2.1
+av==18.0.0
 opencc-python-reimplemented==0.1.7
-pyinstaller>=6.16,<7
+PyInstaller==6.22.2

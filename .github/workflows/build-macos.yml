@@ -1,0 +1,55 @@
+name: Build macOS Apple Silicon app
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-macos-arm64:
+    # Standard GitHub-hosted runner: free for a public repository.
+    runs-on: macos-15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+
+      - name: Install build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r macOS/requirements-macos.txt huggingface-hub==1.24.0
+
+      - name: Download the bundled small model
+        run: |
+          hf download Systran/faster-whisper-small --local-dir "$RUNNER_TEMP/faster-whisper-small"
+          echo "TRANSCRIBER_SMALL_MODEL_DIR=$RUNNER_TEMP/faster-whisper-small" >> "$GITHUB_ENV"
+
+      - name: Build app and create user package
+        run: |
+          bash macOS/build.command
+          PACKAGE_DIR="$RUNNER_TEMP/声栖_macOS_AppleSilicon_0.8.2_未经测试"
+          mkdir -p "$PACKAGE_DIR"
+          ditto "$HOME/Applications/声栖 构建产物/0.8.2/声栖.app" "$PACKAGE_DIR/声栖.app"
+          cp macOS/使用说明.txt "$PACKAGE_DIR/使用说明.txt"
+          cp 开源组件与许可.txt "$PACKAGE_DIR/开源组件与许可.txt"
+          ditto -c -k --sequesterRsrc --keepParent "$PACKAGE_DIR" "$RUNNER_TEMP/声栖_macOS_AppleSilicon_0.8.2_未经测试.zip"
+          SIZE=$(stat -f%z "$RUNNER_TEMP/声栖_macOS_AppleSilicon_0.8.2_未经测试.zip")
+          echo "Mac user package bytes: $SIZE"
+          # Stay below the GitHub Free Actions artifact storage allowance; don't risk paid overages.
+          if [ "$SIZE" -gt 480000000 ]; then
+            echo "Package exceeds the no-cost artifact safety cap (480,000,000 bytes); not uploading." >&2
+            exit 1
+          fi
+
+      - name: Upload short-lived package
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: shengqi-macos-arm64-0.8.2-untested
+          path: ${{ runner.temp }}/声栖_macOS_AppleSilicon_0.8.2_未经测试.zip
+          if-no-files-found: error
+          retention-days: 1

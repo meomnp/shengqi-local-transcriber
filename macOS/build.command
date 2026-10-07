@@ -2,7 +2,7 @@
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VERSION="0.8.0"
+VERSION="0.8.2"
 BUILD_ROOT="$HOME/Library/Application Support/声栖-build/$VERSION"
 SOURCE_COPY="$BUILD_ROOT/source"
 APP_DIR="$HOME/Applications/声栖 构建产物/$VERSION"
