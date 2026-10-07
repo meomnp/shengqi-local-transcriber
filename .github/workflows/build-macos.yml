@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-macos-arm64:
@@ -40,16 +40,14 @@ jobs:
           ditto -c -k --sequesterRsrc --keepParent "$PACKAGE_DIR" "$RUNNER_TEMP/声栖_macOS_AppleSilicon_0.8.2_未经测试.zip"
           SIZE=$(stat -f%z "$RUNNER_TEMP/声栖_macOS_AppleSilicon_0.8.2_未经测试.zip")
           echo "Mac user package bytes: $SIZE"
-          # Stay below the GitHub Free Actions artifact storage allowance; don't risk paid overages.
-          if [ "$SIZE" -gt 480000000 ]; then
-            echo "Package exceeds the no-cost artifact safety cap (480,000,000 bytes); not uploading." >&2
-            exit 1
-          fi
 
-      - name: Upload short-lived package
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: shengqi-macos-arm64-0.8.2-untested
-          path: ${{ runner.temp }}/声栖_macOS_AppleSilicon_0.8.2_未经测试.zip
-          if-no-files-found: error
-          retention-days: 1
+      - name: Publish Mac package as a GitHub prerelease asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v0.8.2-macos-untested \
+            "$RUNNER_TEMP/声栖_macOS_AppleSilicon_0.8.2_未经测试.zip" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "声栖 0.8.2 macOS Apple Silicon（未经测试）" \
+            --notes "Mac 应用包由 GitHub 免费标准 macOS runner 构建。此版本未经测试；请用户自行反馈。源码与使用说明见仓库。" \
+            --prerelease
