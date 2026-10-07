@@ -8,7 +8,9 @@ Windows 便携版解压后运行 `声栖.exe`。主界面分为“转成文字�
 
 “提取音频”就是从视频中取出声音轨道，另存为 MP3、M4A、WAV 或 FLAC，不进行语音识别。MP3 兼容性好且体积小，WAV 文件较大，转换格式不会提升原视频音质。音频格式选项只影响音频提取，不影响转文字。
 
-Windows 包内带有 small 模型，可断网转写；其他模型如果未随包提供，可能需要联网下载。自动识别结果可能有误，人名、数字和重要台词应对照原素材核验。macOS 脚本目前属于未完成真机验收的实验版本，不应当作已验证应用。
+Windows 便携版已在维护者本地环境运行通过；当前包内带有 small 模型，可断网转写，其他模型如果未随包提供可能需要联网下载。不同电脑的运行情况仍可能受系统环境影响。自动识别结果可能有误，人名、数字和重要台词应对照原素材核验。
+
+macOS Apple Silicon 版未在维护者设备上测试。使用者需要自行测试启动、模型加载、转写与音频导出，并欢迎提交问题反馈或贡献改进。当前 GitHub 仓库只提供源码和构建说明，不提供 Windows/macOS 便携二进制包，也不通过 GitHub Actions 构建或分发应用。
 
 ## 本地源码开发
 
@@ -52,4 +54,4 @@ Windows 与 macOS 的便携应用是独立交付物，不是源码仓库的一�
 
 ## 自行修改与迭代
 
-有兴趣研究或继续开发的用户，可以从 [GitHub 上的声栖源码仓库](https://github.com/meomnp/shengqi-local-transcriber) 下载/克隆本仓库，安装 Python 3.12 与 `requirements-desktop.txt` 中的依赖，修改源码后运行测试。便携版用户无需下载源码或安装 Python，直接使用对应系统的应用包即可。
+本项目 GitHub 仓库名为 [`shengqi-local-transcriber`](https://github.com/meomnp/shengqi-local-transcriber)（声栖，本地转写工具）。有兴趣研究或继续开发的用户，可以下载/克隆源码，安装 Python 3.12 与 `requirements-desktop.txt` 中的依赖，修改源码后运行测试。欢迎提交问题、改进建议或 Pull Request。便携版用户无需下载源码或安装 Python，直接使用单独提供的对应系统应用包即可。
