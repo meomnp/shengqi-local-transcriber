@@ -1,0 +1,82 @@
+name: Build macOS Apple Silicon app
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "local_transcriber.py"
+      - "assets/**"
+      - "macOS/**"
+      - ".github/workflows/build-macos-arm64.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    # GitHub's standard macos-14 runner is Apple Silicon and is free for public repositories.
+    runs-on: macos-14
+    timeout-minutes: 60
+    env:
+      TRANSCRIBER_SMALL_MODEL_DIR: ${{ runner.temp }}/faster-whisper-small
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install Python 3.12 and Tk
+        run: |
+          brew install python@3.12 python-tk@3.12
+          echo "$(brew --prefix python@3.12)/bin" >> "$GITHUB_PATH"
+          python3.12 --version
+          test "$(uname -m)" = "arm64"
+
+      - name: Download the pinned small model
+        run: |
+          python3.12 -m venv "$RUNNER_TEMP/model-download-venv"
+          "$RUNNER_TEMP/model-download-venv/bin/python" -m pip install --upgrade pip
+          "$RUNNER_TEMP/model-download-venv/bin/python" -m pip install "faster-whisper==1.2.1"
+          "$RUNNER_TEMP/model-download-venv/bin/python" -c 'from faster_whisper.utils import download_model; download_model("small", output_dir=r"${{ runner.temp }}/faster-whisper-small", revision="2ec96c5472da50d38d40c0cfe0602af2e94b4c8a")'
+          test -s "$TRANSCRIBER_SMALL_MODEL_DIR/model.bin"
+          test -s "$TRANSCRIBER_SMALL_MODEL_DIR/config.json"
+
+      - name: Build and ad-hoc sign the app
+        run: bash macOS/build.command
+
+      - name: Verify bundle structure and Apple Silicon binary
+        run: |
+          APP="$HOME/Applications/声栖 构建产物/0.8.0/声栖.app"
+          test -d "$APP/Contents"
+          codesign --verify --deep --strict "$APP"
+          file "$APP/Contents/MacOS/Shengqi"
+          lipo -info "$APP/Contents/MacOS/Shengqi"
+
+      - name: Assemble portable candidate and notices
+        run: |
+          set -euo pipefail
+          APP="$HOME/Applications/声栖 构建产物/0.8.0/声栖.app"
+          PACKAGE="$RUNNER_TEMP/声栖_macOS_AppleSilicon_候选"
+          mkdir -p "$PACKAGE/第三方许可证"
+          ditto "$APP" "$PACKAGE/声栖.app"
+          cp LICENSE "$PACKAGE/LICENSE-MIT.txt"
+          cp third_party_licenses/* "$PACKAGE/第三方许可证/"
+          cat > "$PACKAGE/使用前请先阅读.md" <<'EOF'
+          # 声栖 macOS Apple Silicon 构建候选
+
+          此包由公开仓库的 macOS Apple Silicon 自动构建产生，尚未在用户的 Mac 上进行实际安装、转写和音频导出验收，也没有 Apple Developer ID 签名或公证。它是交付候选，不代表正式发布许可已完成。
+
+          首次打开若被 Gatekeeper 拦截，请在 Finder 中右键“声栖.app”并选择“打开”。应用内置 small 模型，可离线进行首次模型加载；其他模型按需下载。
+
+          项目源码（MIT）：https://github.com/meomnp/shengqi-local-transcriber
+          第三方许可证与当前仍需完成的 FFmpeg/PyAV 二进制再分发核验见“第三方许可证/SOURCES.md”。在相关核验完成前，不要将此候选作为已完成许可审查的公开发行版。
+          EOF
+          ditto -c -k --sequesterRsrc --keepParent "$PACKAGE" "$RUNNER_TEMP/声栖_macOS_AppleSilicon_便携候选.zip"
+
+      - name: Upload temporary build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shengqi-macos-apple-silicon-candidate
+          path: ${{ runner.temp }}/声栖_macOS_AppleSilicon_便携候选.zip
+          if-no-files-found: error
+          retention-days: 1
