@@ -3,7 +3,8 @@ import os
 from pathlib import Path
 from PyInstaller.utils.hooks import collect_all
 
-project = Path(__file__).resolve().parent.parent
+spec_dir = Path(SPECPATH or ".").resolve()
+project = spec_dir.parent
 datas = [(str(project / "assets" / "shengqi-logo.png"), "assets")]
 binaries = []
 hiddenimports = []
